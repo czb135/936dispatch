@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚛 每日叫车安排生成器</title>
+    <style>
+        :root {
+            --primary-color: #0066cc;
+            --success-color: #28a745;
+            --bg-color: #f4f7f6;
+            --card-bg: #ffffff;
+            --border-color: #e0e0e0;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1, h2, h3 { color: #2c3e50; margin-top: 0; }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            border: 1px solid var(--border-color);
+            overflow-x: auto;
+        }
+        
+        /* 表格样式 */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            padding: 10px;
+            text-align: center;
+        }
+        th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        .table-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #444;
+        }
+        
+        /* 交互区样式 */
+        .header-bar {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        input[type="date"] {
+            padding: 8px 12px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .task-row {
+            display: grid;
+            grid-template-columns: 80px 2fr 2fr;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .task-row:last-child { border-bottom: none; }
+        .task-row input[type="text"] {
+            padding: 8px;
+            font-size: 14px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        button.primary-btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.2s;
+            align-self: flex-start;
+        }
+        button.primary-btn:hover { background-color: #0052a3; }
+        
+        /* 输出区样式 - 更新布局 */
+        .outputs {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .output-box {
+            display: flex;
+            flex-direction: column;
+            gap: 10px; /* 标题、文本框、按钮之间的间距 */
+        }
+        .output-box textarea {
+            width: 100%;
+            height: 250px;
+            padding: 12px; /* 恢复正常的内边距 */
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 14px;
+            resize: vertical;
+            box-sizing: border-box;
+            background-color: #fafafa;
+        }
+        .copy-btn {
+            align-self: flex-end; /* 让按钮靠右对齐 */
+            background-color: #e9ecef;
+            border: 1px solid #ccc;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #333;
+            transition: all 0.2s;
+        }
+        .copy-btn:hover { background-color: #d3d9df; }
+        .copy-btn.copied {
+            background-color: var(--success-color);
+            color: white;
+            border-color: var(--success-color);
+        }
+        .empty-state {
+            color: #777;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🚛 每日叫车安排生成器</h1>
+
+    <div class="container">
+        
+        <div class="card">
+            <div class="table-title">📅 本周发车时刻总览</div>
+            <div id="tableContainer"></div>
+        </div>
+
+        <div class="card header-bar">
+            <label for="datePicker"><strong>安排发车日期 (默认明天 EDT):</strong></label>
+            <input type="date" id="datePicker">
+            <span id="dayOfWeekDisplay" style="color: var(--primary-color); font-weight: bold; font-size: 18px;"></span>
+        </div>
+
+        <div class="card">
+            <h2>🏢 TQL 发车安排修改</h2>
+            <div id="tqlContainer"></div>
+        </div>
+
+        <div class="card">
+            <h2>🏢 80s 发车安排修改</h2>
+            <div id="eightiesContainer"></div>
+        </div>
+
+        <button class="primary-btn" onclick="generateMessages()">🚀 生成发车信息</button>
+
+        <div class="card outputs" id="outputSection" style="display: none;">
+            <div class="output-box">
+                <h3>发送给 TQL</h3>
+                <textarea id="outTQL" readonly></textarea>
+                <button class="copy-btn" onclick="copyText('outTQL', this)">📋 复制</button>
+            </div>
+            <div class="output-box">
+                <h3>发送给 80s</h3>
+                <textarea id="out80s" readonly></textarea>
+                <button class="copy-btn" onclick="copyText('out80s', this)">📋 复制</button>
+            </div>
+            <div class="output-box">
+                <h3>发送至内部发车群</h3>
+                <textarea id="outInternal" readonly></textarea>
+                <button class="copy-btn" onclick="copyText('outInternal', this)">📋 复制</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. 数据定义 ---
+        const DAYS = ["星期天", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
+        const TABLE_DAYS = ["星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期天"]; 
+        
+        const tqlData = [
+            {"Route": "EWR-ORD", "Type": "One Way", "星期一": "", "星期二": "4:00 PM OW", "星期三": "", "星期四": "4:00 PM OW", "星期五": "", "星期六": "4:00 PM OW", "星期天": ""},
+            {"Route": "EWR-DFW", "Type": "Round Trip", "星期一": "8:00 AM RT", "星期二": "8:00 AM RT", "星期三": "8:00 AM RT", "星期四": "8:00 AM RT", "星期五": "8:00 AM RT", "星期六": "8:00 AM RT", "星期天": "8:00 AM RT"},
+            {"Route": "EWR-DFW", "Type": "One Way", "星期一": "", "星期二": "8:00 PM OW", "星期三": "8:00 PM OW", "星期四": "8:00 PM OW", "星期五": "8:00 PM OW", "星期六": "", "星期天": ""},
+            {"Route": "EWR-LAX", "Type": "One Way", "星期一": "", "星期二": "2:00 PM OW", "星期三": "2:00 PM OW", "星期四": "", "星期五": "", "星期六": "", "星期天": ""}
+        ];
+
+        const eightiesData = [
+            {"Route": "EWR-ORD", "Type": "Round Trip", "星期一": "8:00 AM RT", "星期二": "8:00 AM RT", "星期三": "8:00 AM RT", "星期四": "8:00 AM RT", "星期五": "8:00 AM RT", "星期六": "8:00 AM RT", "星期天": "8:00 AM RT"},
+            {"Route": "EWR-ORD", "Type": "Round Trip", "星期一": "4:00 PM RT", "星期二": "4:00 PM RT", "星期三": "4:00 PM RT", "星期四": "4:00 PM RT", "星期五": "4:00 PM RT", "星期六": "4:00 PM RT", "星期天": "4:00 PM RT"}
+        ];
+
+        let currentTqlTasks = [];
+        let currentEightiesTasks = [];
+        let selectedDateObj = new Date();
+
+        const datePicker = document.getElementById('datePicker');
+        const dayOfWeekDisplay = document.getElementById('dayOfWeekDisplay');
+        const tqlContainer = document.getElementById('tqlContainer');
+        const eightiesContainer = document.getElementById('eightiesContainer');
+        const outputSection = document.getElementById('outputSection');
+        const tableContainer = document.getElementById('tableContainer');
+
+        // --- 2. 初始化与时间逻辑 ---
+        window.onload = () => {
+            renderOverviewTable();
+
+            const now = new Date();
+            const edtString = now.toLocaleString("en-US", {timeZone: "America/New_York"});
+            const edtDate = new Date(edtString);
+            
+            edtDate.setDate(edtDate.getDate() + 1);
+            
+            const yyyy = edtDate.getFullYear();
+            const mm = String(edtDate.getMonth() + 1).padStart(2, '0');
+            const dd = String(edtDate.getDate()).padStart(2, '0');
+            datePicker.value = `${yyyy}-${mm}-${dd}`;
+            
+            renderTasks();
+        };
+
+        datePicker.addEventListener('change', renderTasks);
+
+        // --- 3. 渲染一周总览表 ---
+        function renderOverviewTable() {
+            let html = `<table><thead><tr><th>Carrier</th><th>Route</th>`;
+            TABLE_DAYS.forEach(day => html += `<th>${day}</th>`);
+            html += `</tr></thead><tbody>`;
+
+            tqlData.forEach((row, index) => {
+                html += `<tr>`;
+                if(index === 0) html += `<td rowspan="${tqlData.length}"><strong>TQL</strong></td>`;
+                html += `<td>${row.Route}</td>`;
+                TABLE_DAYS.forEach(day => html += `<td>${row[day]}</td>`);
+                html += `</tr>`;
+            });
+
+            html += `<tr style="background-color: #eee; height: 10px;"><td colspan="9"></td></tr>`;
+
+            eightiesData.forEach((row, index) => {
+                html += `<tr>`;
+                if(index === 0) html += `<td rowspan="${eightiesData.length}"><strong>80s</strong></td>`;
+                html += `<td>${row.Route}</td>`;
+                TABLE_DAYS.forEach(day => html += `<td>${row[day]}</td>`);
+                html += `</tr>`;
+            });
+
+            html += `</tbody></table>`;
+            tableContainer.innerHTML = html;
+        }
+
+        // --- 4. 渲染当天修改列表 ---
+        function cleanTime(timeStr) {
+            return timeStr.replace('OW', '').replace('RT', '').trim();
+        }
+
+        function renderTasks() {
+            if(!datePicker.value) return;
+            
+            selectedDateObj = new Date(datePicker.value + 'T00:00:00');
+            const dayStr = DAYS[selectedDateObj.getDay()];
+            dayOfWeekDisplay.innerText = `(${dayStr})`;
+
+            currentTqlTasks = tqlData
+                .filter(item => item[dayStr] !== "")
+                .map(item => ({...item, currentDayTime: cleanTime(item[dayStr])}));
+                
+            currentEightiesTasks = eightiesData
+                .filter(item => item[dayStr] !== "")
+                .map(item => ({...item, currentDayTime: cleanTime(item[dayStr])}));
+
+            renderList(tqlContainer, currentTqlTasks, 'tql');
+            renderList(eightiesContainer, currentEightiesTasks, 'eighties');
+            
+            outputSection.style.display = 'none';
+        }
+
+        function renderList(container, tasks, prefix) {
+            container.innerHTML = '';
+            if (tasks.length === 0) {
+                container.innerHTML = '<p class="empty-state">本日无默认排班。</p>';
+                return;
+            }
+
+            tasks.forEach((task, index) => {
+                const row = document.createElement('div');
+                row.className = 'task-row';
+                row.innerHTML = `
+                    <div>
+                        <input type="checkbox" id="${prefix}_keep_${index}" checked>
+                        <label for="${prefix}_keep_${index}" style="cursor:pointer">保留</label>
+                    </div>
+                    <div><strong>${task.Route}</strong> <span style="color:#666; font-size:12px;">(${task.Type})</span></div>
+                    <div>
+                        <input type="text" id="${prefix}_time_${index}" value="${task.currentDayTime}" placeholder="修改发车时间">
+                    </div>
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        // --- 5. 生成与复制逻辑 ---
+        function getFormattedDates() {
+            const m = selectedDateObj.getMonth() + 1;
+            const d = selectedDateObj.getDate();
+            return {
+                slash: `${m}/${d}`,
+                dot: `${m}.${d}`
+            };
+        }
+
+        function generateMessages() {
+            const dates = getFormattedDates();
+            
+            const tqlKeep = [];
+            const tqlCancel = [];
+            currentTqlTasks.forEach((task, index) => {
+                const isKept = document.getElementById(`tql_keep_${index}`).checked;
+                const newTime = document.getElementById(`tql_time_${index}`).value;
+                const taskData = { route: task.Route, type: task.Type, time: newTime };
+                if (isKept) tqlKeep.push(taskData);
+                else tqlCancel.push(taskData);
+            });
+
+            const eightiesKeep = [];
+            currentEightiesTasks.forEach((task, index) => {
+                const isKept = document.getElementById(`eighties_keep_${index}`).checked;
+                const newTime = document.getElementById(`eighties_time_${index}`).value;
+                if (isKept) eightiesKeep.push({ route: task.Route, type: task.Type, time: newTime });
+            });
+
+            // --- 构建 TQL 消息 ---
+            let tqlMsg = `${dates.slash} Arrangement\n\n`;
+            tqlKeep.forEach((t, idx) => {
+                tqlMsg += `🚗${idx+1}️⃣ ${t.route} (${t.type})\n\n`;
+                tqlMsg += `🕙 ${t.time}\n\n`;
+                tqlMsg += `Carrier: TQL\n\n`;
+                tqlMsg += `Pickup Location: 936 Harrison Ave, Kearny, NJ 07032\n\n \n`;
+            });
+            if (tqlCancel.length > 0) {
+                tqlMsg += `🚫 Cancel:\n`;
+                tqlCancel.forEach((t, idx) => {
+                    tqlMsg += `${idx+1}️⃣${t.route} (${t.type})\n`;
+                });
+            }
+
+            // --- 构建 80s 消息 ---
+            let eMsg = `👉936EWR-ORD ${dates.dot} 叫车安排\n`;
+            eMsg += `*ORD121*: 1211 Tower Road, Schaumburg IL 60173\n\n`;
+            eightiesKeep.forEach((t, idx) => {
+                eMsg += `${idx+1}️⃣${t.time}\n`;
+            });
+            eMsg += `\n @80s-Miamia3478279818     @80s-Nancy`;
+
+            // --- 构建 内部群 消息 ---
+            let intMsg = `${dates.dot} 叫车安排\n`;
+            if (eightiesKeep.length > 0) {
+                intMsg += `80s EWR-ORD\n`;
+                eightiesKeep.forEach((t, idx) => {
+                    intMsg += `🚗${idx+1}️⃣${t.time}\n`;
+                });
+                intMsg += `\n`;
+            }
+            if (tqlKeep.length > 0) {
+                const routes = [...new Set(tqlKeep.map(t => t.route))];
+                routes.forEach(route => {
+                    intMsg += `TQL ${route}\n`;
+                    const routeTasks = tqlKeep.filter(t => t.route === route);
+                    routeTasks.forEach((t, idx) => {
+                        intMsg += `🚗${idx+1}️⃣ ${t.time} ${t.type}\n`;
+                    });
+                    intMsg += `\n`;
+                });
+            }
+
+            document.getElementById('outTQL').value = tqlMsg;
+            document.getElementById('out80s').value = eMsg;
+            document.getElementById('outInternal').value = intMsg;
+            
+            outputSection.style.display = 'grid';
+            
+            document.querySelectorAll('.copy-btn').forEach(btn => {
+                btn.innerText = '📋 复制';
+                btn.classList.remove('copied');
+            });
+        }
+
+        // --- 6. 一键复制功能 ---
+        function copyText(elementId, btnElement) {
+            const textarea = document.getElementById(elementId);
+            textarea.select();
+            textarea.setSelectionRange(0, 99999); 
+            
+            navigator.clipboard.writeText(textarea.value).then(() => {
+                btnElement.innerText = '✅ 已复制!';
+                btnElement.classList.add('copied');
+                
+                setTimeout(() => {
+                    btnElement.innerText = '📋 复制';
+                    btnElement.classList.remove('copied');
+                }, 2000);
+            }).catch(err => {
+                console.error('复制失败:', err);
+                alert('复制失败，请手动选择文本复制。');
+            });
+        }
+    </script>
+</body>
+</html>
