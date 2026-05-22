@@ -201,16 +201,71 @@
         const TABLE_DAYS = ["星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期天"]; 
         
         const tqlData = [
-            {"Route": "EWR-ORD", "Type": "One Way", "星期一": "", "星期二": "4:00 PM OW", "星期三": "", "星期四": "4:00 PM OW", "星期五": "", "星期六": "4:00 PM OW", "星期天": ""},
-            {"Route": "EWR-DFW", "Type": "Round Trip", "星期一": "8:00 AM RT", "星期二": "8:00 AM RT", "星期三": "8:00 AM RT", "星期四": "8:00 AM RT", "星期五": "8:00 AM RT", "星期六": "8:00 AM RT", "星期天": "8:00 AM RT"},
-            {"Route": "EWR-DFW", "Type": "One Way", "星期一": "", "星期二": "8:00 PM OW", "星期三": "8:00 PM OW", "星期四": "8:00 PM OW", "星期五": "8:00 PM OW", "星期六": "", "星期天": ""},
-            {"Route": "EWR-LAX", "Type": "One Way", "星期一": "", "星期二": "2:00 PM OW", "星期三": "2:00 PM OW", "星期四": "", "星期五": "", "星期六": "", "星期天": ""}
-        ];
+    // ORD OW
+    {
+        "Route": "EWR-ORD",
+        "Type": "One Way",
+        "星期一": "",
+        "星期二": "Notify 24 hours in advance",
+        "星期三": "",
+        "星期四": "Notify 24 hours in advance",
+        "星期五": "",
+        "星期六": "",
+        "星期天": ""
+    },
 
+    // DFW RT（保持不变）
+    {
+        "Route": "EWR-DFW",
+        "Type": "Round Trip",
+        "星期一": "8:00 AM RT",
+        "星期二": "8:00 AM RT",
+        "星期三": "8:00 AM RT",
+        "星期四": "8:00 AM RT",
+        "星期五": "8:00 AM RT",
+        "星期六": "8:00 AM RT",
+        "星期天": "8:00 AM RT"
+    },
+
+    // DFW OW（保持不变）
+    {
+        "Route": "EWR-DFW",
+        "Type": "One Way",
+        "星期一": "",
+        "星期二": "8:00 PM OW",
+        "星期三": "8:00 PM OW",
+        "星期四": "8:00 PM OW",
+        "星期五": "8:00 PM OW",
+        "星期六": "",
+        "星期天": ""
+    },
+
+    // LAX OW（保持不变）
+    {
+        "Route": "EWR-LAX",
+        "Type": "One Way",
+        "星期一": "",
+        "星期二": "2:00 PM OW",
+        "星期三": "2:00 PM OW",
+        "星期四": "",
+        "星期五": "",
+        "星期六": "",
+        "星期天": ""
+    }
+];
         const eightiesData = [
-            {"Route": "EWR-ORD", "Type": "Round Trip", "星期一": "8:00 AM RT", "星期二": "8:00 AM RT", "星期三": "8:00 AM RT", "星期四": "8:00 AM RT", "星期五": "8:00 AM RT", "星期六": "8:00 AM RT", "星期天": "8:00 AM RT"},
-            {"Route": "EWR-ORD", "Type": "Round Trip", "星期一": "4:00 PM RT", "星期二": "4:00 PM RT", "星期三": "4:00 PM RT", "星期四": "4:00 PM RT", "星期五": "4:00 PM RT", "星期六": "4:00 PM RT", "星期天": "4:00 PM RT"}
-        ];
+    {
+        "Route": "EWR-ORD",
+        "Type": "Round Trip",
+        "星期一": "8:00 AM RT",
+        "星期二": "8:00 AM RT",
+        "星期三": "8:00 AM RT",
+        "星期四": "8:00 AM RT",
+        "星期五": "8:00 AM RT",
+        "星期六": "8:00 AM RT",
+        "星期天": "8:00 AM RT"
+    }
+];
 
         let currentTqlTasks = [];
         let currentEightiesTasks = [];
@@ -273,8 +328,15 @@
 
         // --- 4. 渲染当天修改列表 ---
         function cleanTime(timeStr) {
-            return timeStr.replace('OW', '').replace('RT', '').trim();
-        }
+    if (timeStr.includes('Notify')) {
+        return timeStr;
+    }
+
+    return timeStr
+        .replace('OW', '')
+        .replace('RT', '')
+        .trim();
+}
 
         function renderTasks() {
             if(!datePicker.value) return;
